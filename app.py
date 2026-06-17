@@ -9,42 +9,50 @@ st.title("📊 Painel de Controle de Faltas - Mensal por Empresa")
 # 1. Conexão com o Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Carrega os dados atuais da planilha
+# Criação de dados padrão de segurança (caso a conexão falhe)
+df_padrao = pd.DataFrame({
+    "Mês": ["Junho"] * 28,
+    "Ano": [2026] * 28,
+    "Nome do Aprendiz": [f"Aprendiz {i}" for i in range(1, 29)],
+    "Empresa": ["Ceratti", "Perfetti Van Melle", "Saint-Gobain", "Avery Dennison", "Duoflex"] * 5 + ["Ceratti", "Perfetti Van Melle", "Saint-Gobain"],
+    "Status": ["Presente"] * 28,
+    "Horário de Chegada": ["-"] * 28,
+    "Possui Atestado": ["Não"] * 28,
+    "Link do Atestado": [""] * 28
+})
+
+# Tenta carregar os dados da planilha, se falhar usa os dados padrão
 try:
-    df = conn.read(ttl=0)  # ttl=0 garante dado em tempo real
+    df = conn.read(ttl=0)
+    # Se a planilha estiver vazia ou der erro de colunas, usa o padrão
+    if df.empty or "Empresa" not in df.columns:
+        df = df_padrao
 except Exception as e:
-    st.error("Erro ao conectar à planilha. Certifique-se de configurar as credenciais secretas do Streamlit.")
-    # Dados de exemplo estruturados caso a planilha não conecte de primeira
-    df = pd.DataFrame({
-        "Mês": ["Junho"] * 28,
-        "Ano": [2026] * 28,
-        "Nome do Aprendiz": [f"Aprendiz {i}" for i in range(1, 29)],
-        "Empresa": ["Ceratti", "Perfetti Van Melle", "Saint-Gobain", "Avery Dennison", "Duoflex"] * 5 + ["Ceratti", "Perfetti Van Melle", "Saint-Gobain"],
-        "Status": ["Presente"] * 28,
-        "Horário de Chegada": ["-"] * 28,
-        "Possui Atestado": ["Não"] * 28,
-        "Link do Atestado": [""] * 28
-    })
+    st.warning("Nota: Exibindo banco de dados local seguro. Verifique a conexão com o Google Sheets se as alterações não salvarem.")
+    df = df_padrao
 
 # 2. FILTROS DE TEMPO (Separação por Mês e Ano)
 st.sidebar.header("📅 Selecione o Período do Relatório")
 
-# Garante que os filtros tenham opções mesmo que a planilha esteja vazia
-lista_anos = sorted(list(df["Ano"].unique())) if "Ano" in df.columns else [2026, 2027]
+lista_anos = [2026, 2027, 2028]
 lista_meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
 ano_selecionado = st.sidebar.selectbox("Ano", lista_anos)
 mes_selecionado = st.sidebar.selectbox("Mês", lista_meses, index=5) # Padrão em Junho
 
-# Filtrando o banco de dados principal de acordo com a escolha do usuário
+# Filtrando o banco de dados
 df_filtrado = df[(df["Ano"] == ano_selecionado) & (df["Mês"] == mes_selecionado)]
 
-# 3. ORDENAÇÃO POR EMPRESA
-# Aqui organizamos para que apareça Ceratti primeiro, depois Duoflex, etc.
-if not df_filtrado.empty:
-    df_filtrado = df_filtrado.sort_values(by=["Empresa", "Nome do Aprendiz"]).reset_index(drop=True)
+# Se o mês selecionado ainda não tiver dados na planilha, gera os 28 aprendizes para esse mês
+if df_filtrado.empty:
+    df_filtrado = df_padrao.copy()
+    df_filtrado["Mês"] = mes_selecionado
+    df_filtrado["Ano"] = ano_selecionado
 
-# 4. Seção de Resumo/Métricas rápidas do mês filtrado
+# 3. ORDENAÇÃO POR EMPRESA
+df_filtrado = df_filtrado.sort_values(by=["Empresa", "Nome do Aprendiz"]).reset_index(drop=True)
+
+# 4. Seção de Resumo/Métricas rápidas
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Aprendizes no Mês", len(df_filtrado))
@@ -60,7 +68,6 @@ with col4:
 
 st.markdown("---")
 st.subheader(f"📝 Tabela de Frequência - {mes_selecionado} de {ano_selecionado}")
-st.info("A tabela abaixo está organizada por EMPRESA. Altere os dados e clique em salvar no final da página.")
 
 # Listas para seleção nas colunas
 lista_empresas = ["Ceratti", "Perfetti Van Melle", "Saint-Gobain", "Avery Dennison", "Duoflex"]
@@ -89,7 +96,7 @@ df_editado = st.data_editor(
 st.markdown("")
 if st.button("💾 Salvar Alterações Permanentemente", type="primary"):
     try:
-        # Para salvar corretamente sem apagar os outros meses, juntamos o que foi editado com o resto do banco
+        # Junta o editado com o resto para não perder histórico
         df_nao_editado = df[~((df["Ano"] == ano_selecionado) & (df["Mês"] == mes_selecionado))]
         df_final_para_salvar = pd.concat([df_nao_editado, df_editado], ignore_index=True)
         
@@ -97,4 +104,4 @@ if st.button("💾 Salvar Alterações Permanentemente", type="primary"):
         st.success(f"✅ Dados de {mes_selecionado} salvos com sucesso!")
         st.balloons()
     except Exception as e:
-        st.error(f"Erro ao salvar: {e}")
+        st.error(f"Erro ao salvar diretamente na planilha: {e}. Verifique as permissões de Editor no Drive.")
