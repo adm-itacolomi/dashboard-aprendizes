@@ -94,7 +94,7 @@ df_editado = st.data_editor(
         "Possui Atestado": st.column_config.SelectboxColumn("Possui Atestado?", options=["Não", "Sim", "Não se aplica"]),
         "Link do Atestado": st.column_config.LinkColumn("Link do Atestado")
     },
-    use_container_width=True
+    use_container_width=stretch
 )
 
 # 5. BOTÃO SALVAR (Filtra e joga na planilha apenas as Faltas e Atrasos)
@@ -117,4 +117,6 @@ if st.button("💾 Gravar Ocorrências na Planilha", type="primary"):
         st.success(f"✅ Ocorrências do dia {data_formatada} atualizadas com sucesso no Sheets!")
         st.balloons()
     except Exception as e:
-        st.error(f"Erro ao salvar: {e}")
+        # EXIBE O ERRO REAL NA TELA PARA NÃO FICARMOS NO ESCURO
+        st.error(f"Erro detalhado ao salvar: {e}")
+        st.code(str(e))
