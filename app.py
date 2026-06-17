@@ -94,7 +94,7 @@ df_editado = st.data_editor(
         "Possui Atestado": st.column_config.SelectboxColumn("Possui Atestado?", options=["Não", "Sim", "Não se aplica"]),
         "Link do Atestado": st.column_config.LinkColumn("Link do Atestado")
     },
-    use_container_width=stretch
+    use_container_width= "stretch"
 )
 
 # 5. BOTÃO SALVAR (Filtra e joga na planilha apenas as Faltas e Atrasos)
