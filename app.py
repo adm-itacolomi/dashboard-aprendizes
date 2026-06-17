@@ -10,9 +10,12 @@ st.title("📊 Painel de Controle de Faltas e Atrasos")
 # 1. Conexão com o Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
 
-# Lista fixa dos seus 28 aprendizes e respectivas empresas para o formulário diário
+# Lista fixa inicial (caso a planilha esteja vazia, serve como ponto de partida)
 lista_aprendizes_fixa = [f"Aprendiz {i}" for i in range(1, 29)]
 lista_empresas_fixa = ["Ceratti", "Perfetti Van Melle", "Saint-Gobain", "Avery Dennison", "Duoflex"] * 5 + ["Ceratti", "Perfetti Van Melle", "Saint-Gobain"]
+
+# Opções de empresas válidas para a listinha de seleção (você pode digitar outras se precisar)
+lista_empresas_opcoes = ["Ceratti", "Perfetti Van Melle", "Saint-Gobain", "Avery Dennison", "Duoflex"]
 
 # Carrega o histórico de faltas/atrasos já existentes
 try:
@@ -54,7 +57,7 @@ with col3:
 
 st.markdown("---")
 st.subheader(f"📝 Chamada do Dia: {data_formatada} ({mes_atual_nome})")
-st.info("Deixe todos como 'Presente'. Mude para 'Falta' ou 'Atraso' apenas quem teve ocorrência. Só estes serão salvos na planilha!")
+st.info("💡 Agora você pode alterar os nomes e empresas direto na tabela! Deixe todos como 'Presente' e mude apenas quem teve ocorrência.")
 
 # 4. MONTAGEM DA TABELA DIÁRIA PARA EDIÇÃO
 df_dia_formulario = pd.DataFrame({
@@ -76,7 +79,7 @@ if not df_historico.empty:
         for idx, row in df_salvo_desse_dia.iterrows():
             df_dia_formulario.loc[df_dia_formulario["Nome do Aprendiz"] == row["Nome do Aprendiz"], ["Status", "Horário de Chegada", "Possui Atestado", "Link do Atestado"]] = [row["Status"], row["Horário de Chegada"], row["Possui Atestado"], row["Link do Atestado"]]
 
-# Exibe o editor na tela organizado por Empresa
+# Exibe o editor na tela organizado por Empresa (Nome e Empresa LIBERADOS para edição)
 df_editado = st.data_editor(
     df_dia_formulario,
     hide_index=True,
@@ -84,8 +87,8 @@ df_editado = st.data_editor(
         "Data": st.column_config.TextColumn("Data", disabled=True),
         "Mês": st.column_config.TextColumn("Mês", disabled=True),
         "Ano": st.column_config.NumberColumn("Ano", format="%d", disabled=True),
-        "Nome do Aprendiz": st.column_config.TextColumn("Nome do Aprendiz", disabled=True),
-        "Empresa": st.column_config.TextColumn("Empresa", disabled=True),
+        "Nome do Aprendiz": st.column_config.TextColumn("Nome do Aprendiz", required=True), # Liberado!
+        "Empresa": st.column_config.SelectboxColumn("Empresa", options=lista_empresas_opcoes, required=True), # Liberado com caixinha de seleção!
         "Status": st.column_config.SelectboxColumn("Status", options=["Presente", "Atraso", "Falta"], required=True),
         "Horário de Chegada": st.column_config.TextColumn("Horário de Chegada (HH:MM)"),
         "Possui Atestado": st.column_config.SelectboxColumn("Possui Atestado?", options=["Não", "Sim", "Não se aplica"]),
